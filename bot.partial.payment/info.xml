@@ -5,7 +5,7 @@
   <name>BOT Partial Payment Extension (Joinery fork)</name>
   <description>This extension provides a framework which can be used to process multiple partial payments for event registrations in CiviCRM; this extension is a fork of the original by Backoffice Thinking</description>
   <urls>
-	<url desc="Main Page">https://github.com/twomice/BOT-Partial-Payment-Extension</url>
+    <url desc="Main Page">https://github.com/twomice/BOT-Partial-Payment-Extension</url>
   </urls>
   <license>AGPL-3.0</license>
   <maintainer>
