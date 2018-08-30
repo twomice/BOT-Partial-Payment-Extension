@@ -154,6 +154,7 @@ function process_partial_payments($paymentParams, $participantInfo) {
 
       if ($trxnRecord->id) {
         $participantInfo[$pId]['success'] = 1;
+        $participantInfo[$pId]['trxn'] = $trxnRecord;
       }
     }
   }
