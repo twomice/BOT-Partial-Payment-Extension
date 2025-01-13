@@ -36,29 +36,19 @@ function payment_civicrm_enable() {
  * @return $participantInfo array with 'Success' flag
  * */
 function process_partial_payments($paymentParams, $participantInfo) {
-  //Iterate through participant info
   foreach ($participantInfo as $pId => $pInfo) {
-    if (!$pInfo['contribution_id'] || !$pId) {
-      $participantInfo[$pId]['success'] = 0;
-      continue;
-    }
-
     if ($pInfo['partial_payment_pay']) {
-      //Update contribution and participant status for pending from pay later registrations
       if ($pInfo['payLater']) {
-        /** Using DAO instead of API
-         * API does not allow changing the status from 'Pending from pay later' to 'Partially Paid'
-         * */
         $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
+        //Update contribution status from pending to partially paid
         $updateContribution = new CRM_Contribute_DAO_Contribution();
-        $contributionParams = array('id' => $pInfo['contribution_id'],
+        $contributionParams = array(
+          'id' => $pInfo['contribution_id'],
           'contact_id' => $pInfo['cid'],
           'contribution_status_id' => array_search('Partially paid', $contributionStatuses),
         );
-
         $updateContribution->copyValues($contributionParams);
-        $updateContribution->save();
-
+        $t = $updateContribution->save();
         //Update participant Status from 'Pending from Pay Later' to 'Partially Paid'
         $pendingPayLater = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_ParticipantStatusType', 'Pending from pay later', 'id', 'name');
         $partiallyPaid = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_ParticipantStatusType', 'Partially paid', 'id', 'name');
@@ -68,19 +58,25 @@ function process_partial_payments($paymentParams, $participantInfo) {
           CRM_Event_BAO_Participant::updateParticipantStatus($pId, $pendingPayLater, $partiallyPaid, TRUE);
         }
       }
-      //Making sure that payment params has the correct amount for partial payment
+
+      //Add additional financial transactions for partial payments
       $paymentParams['total_amount'] = $pInfo['partial_payment_pay'];
 
-      //Add additional financial transactions for each partial payment
-      $trxnRecord = CRM_Contribute_BAO_Contribution::recordAdditionalPayment($pInfo['contribution_id'], $paymentParams, 'owed', $pId);
+      //recordAdditionalPayment method no longer supported as of CiviCRM 5.18.x
+      //$trxnRecord = CRM_Contribute_BAO_Contribution::recordAdditionalPayment( $pInfo['contribution_id'], $paymentParams, 'owed', $pId );
+      $paymentParams['participant_id'] = $pId;
+      $paymentParams['contribution_id'] = $pInfo['contribution_id'];
 
-      if ($trxnRecord->id) {
-        $participantInfo[$pId]['success'] = 1;
-        $participantInfo[$pId]['trxn'] = $trxnRecord;
+      try {
+        $trxnRecord = civicrm_api3('Payment', 'create', $paymentParams);
+      }
+      catch (CiviCRM_API3_Exception $e) {
+        $error = $e->getMessage();
+        CRM_Core_Error::debug_var("Trxn Record", $trxnRecord);
+        CRM_Core_Error::debug_var("API Exception error", $error);
       }
     }
   }
-  return $participantInfo;
 }
 
 // /**
