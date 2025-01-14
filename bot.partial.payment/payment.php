@@ -37,6 +37,10 @@ function payment_civicrm_enable() {
  * */
 function process_partial_payments($paymentParams, $participantInfo) {
   foreach ($participantInfo as $pId => $pInfo) {
+    if (!$pInfo['contribution_id'] || !$pId) {
+      $participantInfo[$pId]['success'] = 0;
+      continue;
+    }
     if ($pInfo['partial_payment_pay']) {
       if ($pInfo['payLater']) {
         $contributionStatuses = CRM_Contribute_PseudoConstant::contributionStatus(NULL, 'name');
@@ -48,7 +52,7 @@ function process_partial_payments($paymentParams, $participantInfo) {
           'contribution_status_id' => array_search('Partially paid', $contributionStatuses),
         );
         $updateContribution->copyValues($contributionParams);
-        $t = $updateContribution->save();
+        $updateContribution->save();
         //Update participant Status from 'Pending from Pay Later' to 'Partially Paid'
         $pendingPayLater = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_ParticipantStatusType', 'Pending from pay later', 'id', 'name');
         $partiallyPaid = CRM_Core_DAO::getFieldValue('CRM_Event_BAO_ParticipantStatusType', 'Partially paid', 'id', 'name');
@@ -75,8 +79,11 @@ function process_partial_payments($paymentParams, $participantInfo) {
         CRM_Core_Error::debug_var("Trxn Record", $trxnRecord);
         CRM_Core_Error::debug_var("API Exception error", $error);
       }
+      $participantInfo[$pId]['success'] = 1;
+      $participantInfo[$pId]['payment'] = $trxnRecord['values'][$trxnRecord['id']];
     }
   }
+  return $participantInfo;
 }
 
 // /**
